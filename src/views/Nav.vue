@@ -1,4 +1,4 @@
-<template>nav</template>
+<template></template>
 
 <script setup lang="ts"></script>
 
