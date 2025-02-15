@@ -1,9 +1,28 @@
-import { createMemoryHistory, createRouter } from "vue-router";
+import { createWebHistory, createRouter } from "vue-router";
 
-const routes = [];
+import DefaultLayout from "../layouts/DefaultLayout.vue";
+import Home from "../views/Home.vue";
+import Nav from "../views/Nav.vue";
+
+const routes = [
+  {
+    name: "",
+    path: "",
+    component: DefaultLayout,
+    children: [
+      {
+        path: "",
+        components: {
+          navRouterView: Nav,
+          mainRouterView: Home,
+        },
+      },
+    ],
+  },
+];
 
 const router = createRouter({
-  history: createMemoryHistory(),
+  history: createWebHistory(),
   routes,
 });
 

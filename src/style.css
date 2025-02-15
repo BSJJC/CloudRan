@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+* {
+  overflow-x: hidden;
+}
+
+body {
+  background-color: lightgray;
+}
+
+.view-full {
+  width: 100%;
+  height: 100%;
+}
