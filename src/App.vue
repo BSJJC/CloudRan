@@ -1,4 +1,4 @@
-<template>CloudRan</template>
+<template>Cloud Ran</template>
 
 <script setup lang="ts"></script>
 
