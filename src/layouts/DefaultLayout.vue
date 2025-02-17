@@ -4,7 +4,7 @@
       <router-view name="navRouterView" />
     </nav>
 
-    <main class="relative bg-red-300 view-full">
+    <main class="relative view-full">
       <router-view name="mainRouterView" />
     </main>
   </div>

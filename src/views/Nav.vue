@@ -1,5 +1,5 @@
 <template>
-  <div>nav1323</div>
+  <div></div>
 </template>
 
 <script setup lang="ts"></script>

@@ -1,21 +1,15 @@
 import { createWebHistory, createRouter } from "vue-router";
 
-import DefaultLayout from "../layouts/DefaultLayout.vue";
-
-import Nav from "../views/Nav.vue";
-import Home from "../views/Home.vue";
-
 const routes = [
   {
-    name: "",
     path: "",
-    component: DefaultLayout,
+    component: () => import("../layouts/DefaultLayout.vue"),
     children: [
       {
         path: "",
         components: {
-          navRouterView: Nav,
-          mainRouterView: Home,
+          navRouterView: () => import("../views/Nav.vue"),
+          mainRouterView: () => import("../views/Home.vue"),
         },
       },
     ],
