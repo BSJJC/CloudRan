@@ -1,4 +1,6 @@
-<template></template>
+<template>
+  <div>nav1323</div>
+</template>
 
 <script setup lang="ts"></script>
 
