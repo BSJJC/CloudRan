@@ -9,7 +9,7 @@ const routes = [
         path: "",
         components: {
           navRouterView: () => import("../views/Nav.vue"),
-          mainRouterView: () => import("../views/Home.vue"),
+          mainRouterView: () => import("../views/Home/Home.vue"),
         },
       },
     ],

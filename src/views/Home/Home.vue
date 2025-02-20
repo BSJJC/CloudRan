@@ -2,7 +2,7 @@
   <div class="view-full relative">
     <!-- 介绍 -->
     <div class="view-full absolute flex justify-center items-center">
-      <div class="h-2/3 bg-amber-300 w-2/3"></div>
+      <Intro></Intro>
     </div>
 
     <!-- 成分 -->
@@ -10,6 +10,10 @@
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { defineAsyncComponent } from "vue";
+
+const Intro = defineAsyncComponent(() => import("./components/Intro.vue"));
+</script>
 
 <style></style>
