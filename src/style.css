@@ -1,11 +1,7 @@
 @import "tailwindcss";
 
 * {
-  /* overflow: hidden; */
-}
-
-body {
-  background-color: lightgray;
+  transition: all 0.1s ease-in-out;
 }
 
 .view-full {
