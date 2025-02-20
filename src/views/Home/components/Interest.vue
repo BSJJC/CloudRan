@@ -7,18 +7,21 @@
     >
       <!-- 瀑布流列容器：动态生成指定数量的列 -->
       <div
-        v-for="_ in listNum"
+        v-for="listNumber in listNum"
         class="w-[200px] h-full relative overflow-hidden"
       >
         <!-- 列内垂直布局容器：实现交错排列效果 -->
         <div
           class="w-full h-[150%] flex flex-col space-y-2 absolute"
-          :style="{ justifyContent: _ % 2 === 1 ? 'flex-start' : 'flex-end' }"
+          :style="{
+            justifyContent: listNumber % 2 === 1 ? 'flex-start' : 'flex-end',
+          }"
         >
           <!-- 瀑布流项：生成指定数量的子元素 -->
           <div
             v-for="_ in listItemNum"
-            class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden to-down"
+            class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
+            :class="listNumber % 2 === 1 ? 'to-down' : 'to-up'"
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img src="../../../assets/test.jpg" alt="" class="opacity-20" />
@@ -68,10 +71,20 @@ onMounted(() => {
 
 <style scoped>
 .to-down {
-  animation: testAnimation 5s linear infinite;
+  animation: to-down 5s linear infinite;
 }
 
-@keyframes testAnimation {
+.to-up {
+  animation: to-up 5s linear infinite;
+}
+
+@keyframes to-down {
+  to {
+    transform: translateY(200%);
+  }
+}
+
+@keyframes to-up {
   to {
     transform: translateY(-200%);
   }
