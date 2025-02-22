@@ -7,24 +7,30 @@
     >
       <!-- 瀑布流列容器：动态生成指定数量的列 -->
       <div
-        v-for="listNumber in listNum"
+        v-for="(col, colIndex) in itemArrays"
+        :key="colIndex"
         class="w-[200px] h-full relative overflow-hidden"
       >
         <!-- 列内垂直布局容器：实现交错排列效果 -->
         <div
           class="w-full h-[150%] flex flex-col space-y-2 absolute"
           :style="{
-            justifyContent: listNumber % 2 === 1 ? 'flex-start' : 'flex-end',
+            justifyContent: colIndex % 2 === 1 ? 'flex-start' : 'flex-end',
           }"
         >
           <!-- 瀑布流项：生成指定数量的子元素 -->
           <div
-            v-for="_ in listItemNum"
+            v-for="(_, rowIndex) in col"
+            :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
-            :class="listNumber % 2 === 1 ? 'to-down' : 'to-up'"
+            :class="colIndex % 2 === 1 ? 'to-down' : 'to-up'"
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
-            <img src="../../../assets/test.jpg" alt="" class="opacity-20" />
+            <img
+              :src="`/src/assets/test${col[rowIndex]}.jpg`"
+              alt=""
+              class="opacity-40"
+            />
           </div>
         </div>
       </div>
@@ -33,13 +39,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, type Ref, watch } from "vue";
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
+import generateRandomSequence from "../../../utils/generateRandomSequence";
 
 const waterfallRef = ref<HTMLDivElement>();
 
-const listNum = ref(0); // 瀑布流列数
-const listItemNum = ref(0); // 每列显示的项目数量
+const itemArrays: Ref<Array<Number[]>> = ref([]);
 
 /**
  * 计算布局参数的核心函数
@@ -51,8 +57,14 @@ function calculateColumns() {
   const waterfallHeight = waterfallRef.value?.clientHeight;
 
   if (waterfallWidth && waterfallHeight) {
-    listNum.value = Math.floor(waterfallWidth / 200); // 每列 200px 宽度
-    listItemNum.value = Math.floor(waterfallHeight / 250); // 每个项目 250px 高度
+    const cols = Math.floor(waterfallWidth / 200);
+    const rows = Math.floor(waterfallHeight / 250) + 2;
+
+    itemArrays.value = Array.from({ length: cols }, () =>
+      generateRandomSequence(18, 3, rows)
+    );
+
+    console.log(itemArrays.value);
   }
 }
 
@@ -66,16 +78,19 @@ onMounted(() => {
   watch(width, () => {
     debouncedCalculate();
   });
+
+  const visibility = waterfallRef.value?.checkVisibility();
+  console.log(visibility);
 });
 </script>
 
 <style scoped>
 .to-down {
-  animation: to-down 5s linear infinite;
+  /* animation: to-down 5s linear infinite; */
 }
 
 .to-up {
-  animation: to-up 5s linear infinite;
+  /* animation: to-up 5s linear infinite; */
 }
 
 @keyframes to-down {
