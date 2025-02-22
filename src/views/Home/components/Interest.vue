@@ -20,7 +20,6 @@
         >
           <!-- 瀑布流项：生成指定数量的子元素 -->
           <div
-            ref="imgContainerRef"
             v-for="(_, rowIndex) in col"
             :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
@@ -28,6 +27,7 @@
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img
+              ref="imgRef"
               :src="`/src/assets/test${col[rowIndex].imgID}.webp`"
               alt=""
               class="opacity-40"
@@ -45,12 +45,12 @@ import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import generateRandomSequence from "../../../utils/generateRandomSequence";
 
 const waterfallRef = ref<HTMLDivElement>();
-const imgContainerRef = ref();
+const imgRef = ref();
 
 type TItemArray = {
   imgID: number;
-  appear: boolean;
-  disappear: boolean;
+  initialVisibility: false;
+  visibility: false;
 };
 
 const itemArrays: Ref<TItemArray[][]> = ref([]);
@@ -69,15 +69,14 @@ function calculateColumns() {
     const rows = Math.floor(waterfallHeight / 250) + 2;
 
     const imgIDs = generateRandomSequence(18, 3, cols * rows);
+    let index = 0;
 
-    itemArrays.value = Array.from({ length: cols }, (_, colIndex) =>
-      Array.from({ length: rows }, (_, rowIndex) => {
-        const imgIndex = rowIndex * cols + colIndex;
-
+    itemArrays.value = Array.from({ length: cols }, () =>
+      Array.from({ length: rows }, () => {
         return {
-          imgID: imgIDs[imgIndex],
-          appear: false,
-          disappear: false,
+          imgID: imgIDs[index++],
+          initialVisibility: false,
+          visibility: false,
         };
       })
     );
@@ -85,7 +84,26 @@ function calculateColumns() {
 }
 
 function monitorImgs() {
-  console.log(imgContainerRef.value);
+  // 配置观察器的选项
+
+  // 创建观察器实例
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, index) => {
+      if (entry.isIntersecting) {
+        console.log(`元素 ${entry.target.id} 可见`);
+        console.log(entry.target);
+        console.log(index);
+        console.log(imgRef.value[index]);
+      } else {
+        console.log(`元素 ${entry.target.id} 不可见`);
+        console.log(entry.target);
+      }
+    });
+  });
+
+  imgRef.value.forEach((element: Element) => {
+    observer.observe(element);
+  });
 }
 
 const debouncedCalculate = useDebounceFn(calculateColumns, 100);
@@ -95,7 +113,7 @@ onMounted(() => {
 
   setTimeout(() => {
     monitorImgs();
-  }, 1);
+  }, 50);
 
   const { width } = useWindowSize();
 
@@ -111,7 +129,7 @@ onMounted(() => {
 }
 
 .to-up {
-  animation: to-up 3s linear infinite;
+  /* animation: to-up 3s linear infinite; */
 }
 
 @keyframes to-down {
