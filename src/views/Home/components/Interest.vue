@@ -20,6 +20,7 @@
         >
           <!-- 瀑布流项：生成指定数量的子元素 -->
           <div
+            ref="imgContainerRef"
             v-for="(_, rowIndex) in col"
             :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
@@ -27,7 +28,7 @@
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img
-              :src="`/src/assets/test${col[rowIndex]}.jpg`"
+              :src="`/src/assets/test${col[rowIndex].imgID}.webp`"
               alt=""
               class="opacity-40"
             />
@@ -44,8 +45,15 @@ import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import generateRandomSequence from "../../../utils/generateRandomSequence";
 
 const waterfallRef = ref<HTMLDivElement>();
+const imgContainerRef = ref();
 
-const itemArrays: Ref<Array<Number[]>> = ref([]);
+type TItemArray = {
+  imgID: number;
+  appear: boolean;
+  disappear: boolean;
+};
+
+const itemArrays: Ref<TItemArray[][]> = ref([]);
 
 /**
  * 计算布局参数的核心函数
@@ -60,12 +68,24 @@ function calculateColumns() {
     const cols = Math.floor(waterfallWidth / 200);
     const rows = Math.floor(waterfallHeight / 250) + 2;
 
-    itemArrays.value = Array.from({ length: cols }, () =>
-      generateRandomSequence(18, 3, rows)
-    );
+    const imgIDs = generateRandomSequence(18, 3, cols * rows);
 
-    console.log(itemArrays.value);
+    itemArrays.value = Array.from({ length: cols }, (_, colIndex) =>
+      Array.from({ length: rows }, (_, rowIndex) => {
+        const imgIndex = rowIndex * cols + colIndex;
+
+        return {
+          imgID: imgIDs[imgIndex],
+          appear: false,
+          disappear: false,
+        };
+      })
+    );
   }
+}
+
+function monitorImgs() {
+  console.log(imgContainerRef.value);
 }
 
 const debouncedCalculate = useDebounceFn(calculateColumns, 100);
@@ -73,24 +93,25 @@ const debouncedCalculate = useDebounceFn(calculateColumns, 100);
 onMounted(() => {
   calculateColumns();
 
+  setTimeout(() => {
+    monitorImgs();
+  }, 1);
+
   const { width } = useWindowSize();
 
   watch(width, () => {
     debouncedCalculate();
   });
-
-  const visibility = waterfallRef.value?.checkVisibility();
-  console.log(visibility);
 });
 </script>
 
 <style scoped>
 .to-down {
-  /* animation: to-down 5s linear infinite; */
+  animation: to-down 3s linear infinite;
 }
 
 .to-up {
-  /* animation: to-up 5s linear infinite; */
+  animation: to-up 3s linear infinite;
 }
 
 @keyframes to-down {

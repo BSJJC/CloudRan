@@ -45,9 +45,8 @@ export default function generateRandomSequence(
 }
 
 // 示例用法
-const n: number = 5;
-const m: number = 3;
-const length: number = 10;
-const randomSequence: number[] = generateRandomSequence(n, m, length);
-console.log(randomSequence);
+// const n: number = 5;
+// const m: number = 3;
+// const length: number = 10;
+// const randomSequence: number[] = generateRandomSequence(n, m, length);
 // [2, 5, 3, 1, 2, 3, 5, 2, 1, 3]
