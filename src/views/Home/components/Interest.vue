@@ -23,7 +23,6 @@
             v-for="(_, rowIndex) in col"
             :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
-            :class="colIndex % 2 === 1 ? 'to-down' : 'to-up'"
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img
@@ -47,10 +46,15 @@ import generateRandomSequence from "../../../utils/generateRandomSequence";
 const waterfallRef = ref<HTMLDivElement>();
 const imgRef = ref();
 
+const waterfallWidth: Ref<number | undefined> = ref(0);
+const waterfallHeight: Ref<number | undefined> = ref(0);
+const cols = ref(0);
+const rows = ref(0);
+
 type TItemArray = {
   imgID: number;
-  initialVisibility: false;
-  visibility: false;
+  initialVisibility: boolean;
+  visibility: boolean;
 };
 
 const itemArrays: Ref<TItemArray[][]> = ref([]);
@@ -61,18 +65,18 @@ const itemArrays: Ref<TItemArray[][]> = ref([]);
  * 2. 根据容器高度计算每列可显示的项目数
  */
 function calculateColumns() {
-  const waterfallWidth = waterfallRef.value?.clientWidth;
-  const waterfallHeight = waterfallRef.value?.clientHeight;
+  waterfallWidth.value = waterfallRef.value?.clientWidth;
+  waterfallHeight.value = waterfallRef.value?.clientHeight;
 
-  if (waterfallWidth && waterfallHeight) {
-    const cols = Math.floor(waterfallWidth / 200);
-    const rows = Math.floor(waterfallHeight / 250) + 2;
+  if (waterfallWidth.value && waterfallHeight.value) {
+    cols.value = Math.floor(waterfallWidth.value / 200);
+    rows.value = Math.floor(waterfallHeight.value / 250) + 2;
 
-    const imgIDs = generateRandomSequence(18, 3, cols * rows);
+    const imgIDs = generateRandomSequence(18, 3, cols.value * rows.value);
     let index = 0;
 
-    itemArrays.value = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => {
+    itemArrays.value = Array.from({ length: cols.value }, () =>
+      Array.from({ length: rows.value }, () => {
         return {
           imgID: imgIDs[index++],
           initialVisibility: false,
@@ -83,20 +87,47 @@ function calculateColumns() {
   }
 }
 
-function monitorImgs() {
-  // 配置观察器的选项
+function initialItemArrays() {
+  new IntersectionObserver((entries) => {
+    entries.forEach((entry, index) => {
+      if (entry.isIntersecting) {
+        const [indexCol, indexRow] = [
+          Math.floor(index / rows.value),
+          Math.floor(index % rows.value),
+        ];
 
-  // 创建观察器实例
+        itemArrays.value[indexCol][indexRow].initialVisibility = true;
+        itemArrays.value[indexCol][indexRow].visibility = true;
+      } else {
+      }
+    });
+  });
+}
+
+function monitorImgs() {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry, index) => {
       if (entry.isIntersecting) {
-        console.log(`元素 ${entry.target.id} 可见`);
-        console.log(entry.target);
-        console.log(index);
-        console.log(imgRef.value[index]);
+        /**
+         *    col 2   row 5
+         *
+         *    index === 7
+         *    1 Math.floor(index / row)
+         *      Math.floor(7 / 5) === 1
+         *      indexCol === 1
+         *    2 Math.floor(index % col)
+         *      Math.floor(7 % 5) === 2
+         *      indexRow === 2
+         *    当index为7时，在二维数组itemArrays中的坐标是itemArrays[1][2]
+         */
+        const [indexCol, indexRow] = [
+          Math.floor(index / rows.value),
+          Math.floor(index % rows.value),
+        ];
+
+        itemArrays.value[indexCol][indexRow].initialVisibility = true;
+        itemArrays.value[indexCol][indexRow].visibility = true;
       } else {
-        console.log(`元素 ${entry.target.id} 不可见`);
-        console.log(entry.target);
       }
     });
   });
@@ -111,36 +142,17 @@ const debouncedCalculate = useDebounceFn(calculateColumns, 100);
 onMounted(() => {
   calculateColumns();
 
-  setTimeout(() => {
-    monitorImgs();
-  }, 50);
-
   const { width } = useWindowSize();
 
   watch(width, () => {
     debouncedCalculate();
   });
+
+  setTimeout(() => {
+    initialItemArrays();
+    // monitorImgs();
+  }, 50);
 });
 </script>
 
-<style scoped>
-.to-down {
-  animation: to-down 3s linear infinite;
-}
-
-.to-up {
-  /* animation: to-up 3s linear infinite; */
-}
-
-@keyframes to-down {
-  to {
-    transform: translateY(200%);
-  }
-}
-
-@keyframes to-up {
-  to {
-    transform: translateY(-200%);
-  }
-}
-</style>
+<style scoped></style>
