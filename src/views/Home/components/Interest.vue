@@ -20,16 +20,21 @@
         >
           <!-- 瀑布流项：生成指定数量的子元素 -->
           <div
+            ref="imgRef"
             v-for="(_, rowIndex) in col"
             :key="rowIndex"
-            class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
+            class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
+            style="transform: translateY(0px)"
           >
             <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img
-              ref="imgRef"
-              :src="`/src/assets/test${col[rowIndex].imgID}.webp`"
-              alt=""
+              :src="
+                col[rowIndex].imgID
+                  ? `/src/assets/test${col[rowIndex].imgID}.webp`
+                  : `/src/assets/default.webp`
+              "
               class="opacity-40"
+              alt=""
             />
           </div>
         </div>
@@ -53,8 +58,8 @@ const rows = ref(0);
 
 type TItemArray = {
   imgID: number;
-  initialVisibility: boolean;
-  visibility: boolean;
+  initialVisibility: boolean | null; // 生成时是否可见
+  visibility: boolean | null; // 当前是否可见
 };
 
 const itemArrays: Ref<TItemArray[][]> = ref([]);
@@ -79,55 +84,56 @@ function calculateColumns() {
       Array.from({ length: rows.value }, () => {
         return {
           imgID: imgIDs[index++],
-          initialVisibility: false,
-          visibility: false,
+          initialVisibility: null,
+          visibility: null,
         };
       })
     );
   }
 }
 
-function initialItemArrays() {
-  new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-      if (entry.isIntersecting) {
-        const [indexCol, indexRow] = [
-          Math.floor(index / rows.value),
-          Math.floor(index % rows.value),
-        ];
-
-        itemArrays.value[indexCol][indexRow].initialVisibility = true;
-        itemArrays.value[indexCol][indexRow].visibility = true;
-      } else {
-      }
-    });
-  });
-}
-
 function monitorImgs() {
+  /**
+   * 先判断initialVisibility，如果为null，证明这是第一次检查
+   * 根据是否可见将initialVisibility和visibility修改为true或false，随后跳过
+   *
+   * 如果visibility和initialVisibility为false，entry.isIntersecting为false
+   * 证明元素尚未出现在屏幕中，向上或向下移动后跳过
+   *
+   * 如果visibility和initialVisibility为false，entry.isIntersecting为true
+   * 证明这是元素第一次出现在屏幕中，将visibility修改为true，向上或向下移动后跳过
+   *
+   * 如果visibility为true，initialVisibility为true或false，entry.isIntersecting为true
+   * 证明元素正在屏幕中，向上或向下移动后跳过
+   *
+   * 如果visibility为true，initialVisibility为true或false，entry.isIntersecting为false，
+   * 证明元素已经离开屏幕，移除元素
+   */
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry, index) => {
-      if (entry.isIntersecting) {
-        /**
-         *    col 2   row 5
-         *
-         *    index === 7
-         *    1 Math.floor(index / row)
-         *      Math.floor(7 / 5) === 1
-         *      indexCol === 1
-         *    2 Math.floor(index % col)
-         *      Math.floor(7 % 5) === 2
-         *      indexRow === 2
-         *    当index为7时，在二维数组itemArrays中的坐标是itemArrays[1][2]
-         */
-        const [indexCol, indexRow] = [
-          Math.floor(index / rows.value),
-          Math.floor(index % rows.value),
-        ];
+      const [indexCol, indexRow] = [
+        Math.floor(index / rows.value),
+        Math.floor(index % rows.value),
+      ];
 
-        itemArrays.value[indexCol][indexRow].initialVisibility = true;
-        itemArrays.value[indexCol][indexRow].visibility = true;
+      const initialVisibility =
+        itemArrays.value[indexCol][indexRow].initialVisibility;
+      const visibility = itemArrays.value[indexCol][indexRow].visibility;
+      const isIntersecting = entry.isIntersecting;
+
+      // 初始化
+      if (itemArrays.value[indexCol][indexRow].initialVisibility === null) {
+        const isIntersecting = entry.isIntersecting;
+        itemArrays.value[indexCol][indexRow].initialVisibility = isIntersecting;
+        itemArrays.value[indexCol][indexRow].visibility = isIntersecting;
+
+        console.log("元素已初始化", imgRef.value[index]);
+        // 不 return，这样后续 frame 更新时依然可以修改 transform
+        return;
       } else {
+        itemArrays.value[indexCol][indexRow].visibility = false;
+        console.log("元素离开屏幕", imgRef.value[index]);
+        console.log(index);
       }
     });
   });
@@ -137,7 +143,30 @@ function monitorImgs() {
   });
 }
 
+function continuousUpdate() {
+  imgRef.value.forEach((element: HTMLElement, index: number) => {
+    let offSet = element.style.getPropertyValue("transform");
+    const l = offSet.indexOf("(") + 1;
+    const r = offSet.indexOf("p");
+    offSet = offSet.slice(l, r);
+    let offsetNum = parseInt(offSet) || 0;
+
+    // 根据列的奇偶性决定更新方向（示例逻辑）
+    const indexCol = Math.floor(index / rows.value);
+    if (indexCol % 2 === 0) {
+      offsetNum -= 10; // 向上平移
+    } else {
+      offsetNum += 10; // 向下平移
+    }
+
+    element.style.setProperty("transform", `translateY(${offsetNum}px)`);
+  });
+
+  debouncedUpdate();
+}
+
 const debouncedCalculate = useDebounceFn(calculateColumns, 100);
+const debouncedUpdate = useDebounceFn(continuousUpdate, 100);
 
 onMounted(() => {
   calculateColumns();
@@ -149,8 +178,8 @@ onMounted(() => {
   });
 
   setTimeout(() => {
-    initialItemArrays();
-    // monitorImgs();
+    monitorImgs();
+    debouncedUpdate();
   }, 50);
 });
 </script>

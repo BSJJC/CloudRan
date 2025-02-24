@@ -2,7 +2,7 @@
   <div class="view-full relative">
     <!-- 介绍 -->
     <div class="view-full absolute flex justify-center items-center z-[+1]">
-      <Intro></Intro>
+      <!-- <Intro></Intro> -->
     </div>
 
     <!-- 成分 -->
