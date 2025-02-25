@@ -5,20 +5,15 @@
       ref="waterfallRef"
       class="view-full flex justify-center items-center space-x-2"
     >
-      <!-- 瀑布流列容器：动态生成指定数量的列 -->
+      <!-- 瀑布流列容器 -->
       <div
         v-for="(col, colIndex) in itemArrays"
         :key="colIndex"
         class="w-[200px] h-full relative overflow-hidden"
       >
-        <!-- 列内垂直布局容器：实现交错排列效果 -->
-        <div
-          class="w-full h-[150%] flex flex-col space-y-2 absolute"
-          :style="{
-            justifyContent: colIndex % 2 === 1 ? 'flex-start' : 'flex-end',
-          }"
-        >
-          <!-- 瀑布流项：生成指定数量的子元素 -->
+        <!-- 列内垂直布局容器 -->
+        <div class="w-full h-[150%] flex flex-col space-y-2 absolute">
+          <!-- 瀑布流项 -->
           <div
             ref="imgRef"
             v-for="(_, rowIndex) in col"
@@ -26,10 +21,9 @@
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
             style="transform: translateY(0px)"
           >
-            <!-- 图片占位符（实际项目应替换为动态内容） -->
             <img
               :src="
-                col[rowIndex].imgID
+                col[rowIndex].imgID >= 0
                   ? `/src/assets/test${col[rowIndex].imgID}.webp`
                   : `/src/assets/default.webp`
               "
@@ -46,101 +40,49 @@
 <script setup lang="ts">
 import { onMounted, ref, type Ref, watch } from "vue";
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
-import generateRandomSequence from "../../../utils/generateRandomSequence";
+import { v4 as uuidv4 } from "uuid";
 
 const waterfallRef = ref<HTMLDivElement>();
 const imgRef = ref();
 
-const waterfallWidth: Ref<number | undefined> = ref(0);
-const waterfallHeight: Ref<number | undefined> = ref(0);
-const cols = ref(0);
-const rows = ref(0);
-
 type TItemArray = {
   imgID: number;
-  initialVisibility: boolean | null; // 生成时是否可见
-  visibility: boolean | null; // 当前是否可见
+  uuid: string;
+  moveDirection: "up" | "down";
 };
 
 const itemArrays: Ref<TItemArray[][]> = ref([]);
 
-/**
- * 计算布局参数的核心函数
- * 1. 根据容器宽度计算可显示的列数
- * 2. 根据容器高度计算每列可显示的项目数
- */
 function calculateColumns() {
-  waterfallWidth.value = waterfallRef.value?.clientWidth;
-  waterfallHeight.value = waterfallRef.value?.clientHeight;
+  const waterfallWidth = waterfallRef.value?.clientWidth;
+  const waterfallHeight = waterfallRef.value?.clientHeight;
 
-  if (waterfallWidth.value && waterfallHeight.value) {
-    cols.value = Math.floor(waterfallWidth.value / 200);
-    rows.value = Math.floor(waterfallHeight.value / 250) + 2;
+  if (waterfallWidth && waterfallHeight) {
+    const cols = Math.floor(waterfallWidth / 200);
+    const rows = Math.floor(waterfallHeight / 250) + 1;
 
-    const imgIDs = generateRandomSequence(18, 3, cols.value * rows.value);
-    let index = 0;
+    const maxImgNum = 18;
+    let index = -1;
 
-    itemArrays.value = Array.from({ length: cols.value }, () =>
-      Array.from({ length: rows.value }, () => {
+    itemArrays.value = Array.from({ length: cols }, () =>
+      Array.from({ length: rows }, () => {
+        let _index = index;
+        if (_index + 1 > maxImgNum) {
+          _index = 0;
+          index = 0;
+        } else {
+          _index++;
+          index++;
+        }
+
         return {
-          imgID: imgIDs[index++],
-          initialVisibility: null,
-          visibility: null,
+          imgID: _index,
+          uuid: uuidv4(),
+          moveDirection: Math.floor(index / rows) % 2 === 0 ? "up" : "down",
         };
       })
     );
   }
-}
-
-function monitorImgs() {
-  /**
-   * 先判断initialVisibility，如果为null，证明这是第一次检查
-   * 根据是否可见将initialVisibility和visibility修改为true或false，随后跳过
-   *
-   * 如果visibility和initialVisibility为false，entry.isIntersecting为false
-   * 证明元素尚未出现在屏幕中，向上或向下移动后跳过
-   *
-   * 如果visibility和initialVisibility为false，entry.isIntersecting为true
-   * 证明这是元素第一次出现在屏幕中，将visibility修改为true，向上或向下移动后跳过
-   *
-   * 如果visibility为true，initialVisibility为true或false，entry.isIntersecting为true
-   * 证明元素正在屏幕中，向上或向下移动后跳过
-   *
-   * 如果visibility为true，initialVisibility为true或false，entry.isIntersecting为false，
-   * 证明元素已经离开屏幕，移除元素
-   */
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-      const [indexCol, indexRow] = [
-        Math.floor(index / rows.value),
-        Math.floor(index % rows.value),
-      ];
-
-      const initialVisibility =
-        itemArrays.value[indexCol][indexRow].initialVisibility;
-      const visibility = itemArrays.value[indexCol][indexRow].visibility;
-      const isIntersecting = entry.isIntersecting;
-
-      // 初始化
-      if (itemArrays.value[indexCol][indexRow].initialVisibility === null) {
-        const isIntersecting = entry.isIntersecting;
-        itemArrays.value[indexCol][indexRow].initialVisibility = isIntersecting;
-        itemArrays.value[indexCol][indexRow].visibility = isIntersecting;
-
-        console.log("元素已初始化", imgRef.value[index]);
-        // 不 return，这样后续 frame 更新时依然可以修改 transform
-        return;
-      } else {
-        itemArrays.value[indexCol][indexRow].visibility = false;
-        console.log("元素离开屏幕", imgRef.value[index]);
-        console.log(index);
-      }
-    });
-  });
-
-  imgRef.value.forEach((element: Element) => {
-    observer.observe(element);
-  });
 }
 
 function continuousUpdate() {
@@ -151,13 +93,15 @@ function continuousUpdate() {
     offSet = offSet.slice(l, r);
     let offsetNum = parseInt(offSet) || 0;
 
-    // 根据列的奇偶性决定更新方向（示例逻辑）
-    const indexCol = Math.floor(index / rows.value);
-    if (indexCol % 2 === 0) {
-      offsetNum -= 10; // 向上平移
-    } else {
-      offsetNum += 10; // 向下平移
-    }
+    // 根据列的奇偶性决定更新方向
+    // const indexCol = Math.floor(
+    //   index / Math.floor(waterfallRef.value!.clientHeight / 250) + 2
+    // );
+    // if (indexCol % 2 === 0) {
+    //   offsetNum -= 10; // 向上平移
+    // } else {
+    //   offsetNum += 10; // 向下平移
+    // }
 
     element.style.setProperty("transform", `translateY(${offsetNum}px)`);
   });
@@ -178,8 +122,10 @@ onMounted(() => {
   });
 
   setTimeout(() => {
-    monitorImgs();
-    debouncedUpdate();
+    const flatArr = itemArrays.value.flat();
+    console.log(flatArr);
+
+    // debouncedUpdate();
   }, 50);
 });
 </script>
