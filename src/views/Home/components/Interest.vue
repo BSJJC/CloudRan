@@ -141,6 +141,8 @@ function updateMasonryColumns() {
           moveDirection,
         });
 
+        // TODO 为什么新生成的图片会跑到下面老远去
+
         masonryColumns.value[index].shift();
       }
     });
