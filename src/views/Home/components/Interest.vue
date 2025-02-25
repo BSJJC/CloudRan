@@ -1,31 +1,31 @@
 <template>
   <div class="view-full p-4">
-    <!-- 瀑布流容器 -->
+    <!-- 瀑布流容器 (Masonry Container) -->
     <div
       ref="masonryContainerRef"
-      class="view-full flex justify-center items-center space-x-2"
+      class="view-full flex justify-center items-center space-x-2 overflow-hidden"
     >
-      <!-- 瀑布流列容器 -->
+      <!-- 瀑布流列容器 (Masonry Columns) -->
       <div
-        v-for="(col, colIndex) in masonryColumns"
+        v-for="(column, colIndex) in masonryColumns"
         :key="colIndex"
-        class="w-[200px] h-full relative overflow-hidden"
+        class="w-[200px] h-[150%] relative overflow-hidden"
       >
         <!-- 列内垂直布局容器 -->
-        <div class="w-full h-[150%] flex flex-col space-y-2 absolute">
-          <!-- 瀑布流项 -->
+        <div class="w-full h-full flex flex-col bg-red-300 space-y-2 absolute">
+          <!-- 瀑布流项 (Masonry Items) -->
           <div
             ref="imageRefs"
-            v-for="(_, rowIndex) in col"
+            v-for="(item, rowIndex) in column"
             :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
             style="transform: translateY(0px)"
           >
             <img
               :src="
-                col[rowIndex].imgID
-                  ? `/src/assets/test${col[rowIndex].imgID}.webp`
-                  : `/src/assets/default.webp`
+                item.imageId
+                  ? `/src/assets/interestImages/test${item.imageId}.webp`
+                  : `/src/assets/interestImages/default.webp`
               "
               class="opacity-40"
               alt=""
@@ -42,89 +42,100 @@ import { onMounted, ref, type Ref, watch } from "vue";
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 
+// 瀑布流容器 DOM 引用
 const masonryContainerRef = ref<HTMLDivElement>();
-const imageRefs = ref();
+// 瀑布流项的 DOM 引用（v-for 多个元素会形成数组）
+const imageRefs = ref<HTMLElement[]>([]);
 
-type TItemArray = {
-  imgID: number;
+// 定义瀑布流项的数据类型
+type MasonryItem = {
+  imageId: number;
   uuid: string;
   moveDirection: "up" | "down";
 };
 
-const masonryColumns: Ref<TItemArray[][]> = ref([]);
+// 用二维数组存储瀑布流的列，每一列包含多个瀑布流项
+const masonryColumns: Ref<MasonryItem[][]> = ref([]);
 
+/**
+ * 根据容器尺寸初始化瀑布流列及项
+ */
 function initializeMasonryGrid() {
-  const waterfallWidth = masonryContainerRef.value?.clientWidth;
-  const waterfallHeight = masonryContainerRef.value?.clientHeight;
+  const containerWidth = masonryContainerRef.value?.clientWidth;
+  const containerHeight = masonryContainerRef.value?.clientHeight;
 
-  if (waterfallWidth && waterfallHeight) {
-    const cols = Math.floor(waterfallWidth / 200);
-    const rows = Math.floor(waterfallHeight / 250) + 1;
+  if (containerWidth && containerHeight) {
+    const columnCount = Math.floor(containerWidth / 200);
+    const rowCount = Math.floor(containerHeight / 250) + 2;
 
-    const maxImgNum = 18;
-    let imgIDCount = 0;
-    let directionJudge = -1;
+    const interestImages = import.meta.glob(
+      "../../../assets/interestImages/*.webp"
+    );
+    const maxImageId = Object.keys(interestImages).length;
 
-    masonryColumns.value = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => {
-        let _imgIDCount = imgIDCount;
-        if (_imgIDCount + 1 > maxImgNum) {
-          _imgIDCount = 1;
-          imgIDCount = 1;
+    let currentImageId = 0;
+    let directionIndex = -1;
+
+    masonryColumns.value = Array.from({ length: columnCount }, () =>
+      Array.from({ length: rowCount }, () => {
+        let imageIdForItem = currentImageId;
+        if (imageIdForItem + 1 > maxImageId) {
+          imageIdForItem = 1;
+          currentImageId = 1;
         } else {
-          _imgIDCount++;
-          imgIDCount++;
+          imageIdForItem++;
+          currentImageId++;
         }
 
-        directionJudge++;
+        directionIndex++;
 
         return {
-          imgID: _imgIDCount,
+          imageId: imageIdForItem,
           uuid: uuidv4(),
           moveDirection:
-            Math.floor(directionJudge / rows) % 2 === 0 ? "up" : "down",
+            Math.floor(directionIndex / rowCount) % 2 === 0 ? "up" : "down",
         };
       })
     );
   }
 }
 
+/**
+ * 更新瀑布流项的垂直位移，实现动画效果
+ */
 function updateImagePositions() {
   imageRefs.value.forEach((element: HTMLElement, index: number) => {
-    let offSet = element.style.getPropertyValue("transform");
-    const l = offSet.indexOf("(") + 1;
-    const r = offSet.indexOf("p");
-    offSet = offSet.slice(l, r);
-    let offsetNum = parseInt(offSet);
+    let transformValue = element.style.getPropertyValue("transform");
+    const start = transformValue.indexOf("(") + 1;
+    const end = transformValue.indexOf("p");
+    const currentOffset = transformValue.slice(start, end);
+    let offsetValue = parseInt(currentOffset);
 
     const direction = masonryColumns.value.flat()[index].moveDirection;
-
     if (direction === "up") {
-      offsetNum -= 50; // 向上平移
+      offsetValue -= 50; // 向上移动
     } else {
-      offsetNum += 50; // 向下平移
+      offsetValue += 50; // 向下移动
     }
-
-    element.style.setProperty("transform", `translateY(${offsetNum}px)`);
+    element.style.setProperty("transform", `translateY(${offsetValue}px)`);
   });
 
-  debouncedUpdate();
+  debouncedPositionUpdate();
 }
 
-const debouncedCalculate = useDebounceFn(initializeMasonryGrid, 100);
-const debouncedUpdate = useDebounceFn(updateImagePositions, 1000);
+const debouncedGridInitialization = useDebounceFn(initializeMasonryGrid, 100);
+const debouncedPositionUpdate = useDebounceFn(updateImagePositions, 1000);
 
 onMounted(() => {
   initializeMasonryGrid();
 
   const { width } = useWindowSize();
-
   watch(width, () => {
-    debouncedCalculate();
+    debouncedGridInitialization();
   });
 
   setTimeout(() => {
-    debouncedUpdate();
+    debouncedPositionUpdate();
   }, 500);
 });
 </script>
