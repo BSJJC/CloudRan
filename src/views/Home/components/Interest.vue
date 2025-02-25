@@ -12,13 +12,17 @@
         class="w-[200px] h-[150%] relative overflow-hidden"
       >
         <!-- 列内垂直布局容器 -->
-        <div class="w-full h-full flex flex-col bg-red-300 space-y-2 absolute">
+        <transition-group
+          tag="ul"
+          name="fade"
+          class="w-full h-full flex flex-col space-y-2 relative"
+        >
           <!-- 瀑布流项 (Masonry Items) -->
           <div
             ref="imageRefs"
-            v-for="(item, rowIndex) in column"
-            :key="rowIndex"
-            class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
+            v-for="item in column"
+            :key="item.uuid"
+            class="min-h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
             style="transform: translateY(0px)"
           >
             <img
@@ -31,7 +35,7 @@
               alt=""
             />
           </div>
-        </div>
+        </transition-group>
       </div>
     </div>
   </div>
@@ -123,6 +127,26 @@ function updateImagePositions() {
   debouncedPositionUpdate();
 }
 
+function updateMasonryColumns() {
+  setInterval(() => {
+    masonryColumns.value.forEach((elements, index) => {
+      const moveDirection = elements[0].moveDirection;
+      if (moveDirection === "up") {
+        let { imageId, moveDirection } = elements[elements.length - 1];
+        console.log(imageId);
+
+        masonryColumns.value[index].push({
+          imageId: 10,
+          uuid: uuidv4(),
+          moveDirection,
+        });
+
+        masonryColumns.value[index].shift();
+      }
+    });
+  }, 3000);
+}
+
 const debouncedGridInitialization = useDebounceFn(initializeMasonryGrid, 100);
 const debouncedPositionUpdate = useDebounceFn(updateImagePositions, 1000);
 
@@ -136,8 +160,28 @@ onMounted(() => {
 
   setTimeout(() => {
     debouncedPositionUpdate();
+    updateMasonryColumns();
   }, 500);
 });
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 1. 声明过渡效果 */
+.fade-move,
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.5s ease-in-out;
+}
+
+/* 2. 声明进入和离开的状态 */
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 3. 确保离开的项目被移除出了布局流
+      以便正确地计算移动时的动画效果。 */
+.fade-leave-active {
+  position: absolute;
+}
+</style>
