@@ -2,12 +2,12 @@
   <div class="view-full p-4">
     <!-- 瀑布流容器 -->
     <div
-      ref="waterfallRef"
+      ref="masonryContainerRef"
       class="view-full flex justify-center items-center space-x-2"
     >
       <!-- 瀑布流列容器 -->
       <div
-        v-for="(col, colIndex) in itemArrays"
+        v-for="(col, colIndex) in masonryColumns"
         :key="colIndex"
         class="w-[200px] h-full relative overflow-hidden"
       >
@@ -15,7 +15,7 @@
         <div class="w-full h-[150%] flex flex-col space-y-2 absolute">
           <!-- 瀑布流项 -->
           <div
-            ref="imgRef"
+            ref="imageRefs"
             v-for="(_, rowIndex) in col"
             :key="rowIndex"
             class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
@@ -42,8 +42,8 @@ import { onMounted, ref, type Ref, watch } from "vue";
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 
-const waterfallRef = ref<HTMLDivElement>();
-const imgRef = ref();
+const masonryContainerRef = ref<HTMLDivElement>();
+const imageRefs = ref();
 
 type TItemArray = {
   imgID: number;
@@ -51,11 +51,11 @@ type TItemArray = {
   moveDirection: "up" | "down";
 };
 
-const itemArrays: Ref<TItemArray[][]> = ref([]);
+const masonryColumns: Ref<TItemArray[][]> = ref([]);
 
-function calculateColumns() {
-  const waterfallWidth = waterfallRef.value?.clientWidth;
-  const waterfallHeight = waterfallRef.value?.clientHeight;
+function initializeMasonryGrid() {
+  const waterfallWidth = masonryContainerRef.value?.clientWidth;
+  const waterfallHeight = masonryContainerRef.value?.clientHeight;
 
   if (waterfallWidth && waterfallHeight) {
     const cols = Math.floor(waterfallWidth / 200);
@@ -65,7 +65,7 @@ function calculateColumns() {
     let imgIDCount = 0;
     let directionJudge = -1;
 
-    itemArrays.value = Array.from({ length: cols }, () =>
+    masonryColumns.value = Array.from({ length: cols }, () =>
       Array.from({ length: rows }, () => {
         let _imgIDCount = imgIDCount;
         if (_imgIDCount + 1 > maxImgNum) {
@@ -89,15 +89,15 @@ function calculateColumns() {
   }
 }
 
-function continuousUpdate() {
-  imgRef.value.forEach((element: HTMLElement, index: number) => {
+function updateImagePositions() {
+  imageRefs.value.forEach((element: HTMLElement, index: number) => {
     let offSet = element.style.getPropertyValue("transform");
     const l = offSet.indexOf("(") + 1;
     const r = offSet.indexOf("p");
     offSet = offSet.slice(l, r);
     let offsetNum = parseInt(offSet);
 
-    const direction = itemArrays.value.flat()[index].moveDirection;
+    const direction = masonryColumns.value.flat()[index].moveDirection;
 
     if (direction === "up") {
       offsetNum -= 50; // 向上平移
@@ -111,11 +111,11 @@ function continuousUpdate() {
   debouncedUpdate();
 }
 
-const debouncedCalculate = useDebounceFn(calculateColumns, 100);
-const debouncedUpdate = useDebounceFn(continuousUpdate, 1000);
+const debouncedCalculate = useDebounceFn(initializeMasonryGrid, 100);
+const debouncedUpdate = useDebounceFn(updateImagePositions, 1000);
 
 onMounted(() => {
-  calculateColumns();
+  initializeMasonryGrid();
 
   const { width } = useWindowSize();
 
