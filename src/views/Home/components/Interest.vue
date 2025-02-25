@@ -23,7 +23,7 @@
           >
             <img
               :src="
-                col[rowIndex].imgID >= 0
+                col[rowIndex].imgID
                   ? `/src/assets/test${col[rowIndex].imgID}.webp`
                   : `/src/assets/default.webp`
               "
@@ -62,23 +62,27 @@ function calculateColumns() {
     const rows = Math.floor(waterfallHeight / 250) + 1;
 
     const maxImgNum = 18;
-    let index = -1;
+    let imgIDCount = 0;
+    let directionJudge = -1;
 
     itemArrays.value = Array.from({ length: cols }, () =>
       Array.from({ length: rows }, () => {
-        let _index = index;
-        if (_index + 1 > maxImgNum) {
-          _index = 0;
-          index = 0;
+        let _imgIDCount = imgIDCount;
+        if (_imgIDCount + 1 > maxImgNum) {
+          _imgIDCount = 1;
+          imgIDCount = 1;
         } else {
-          _index++;
-          index++;
+          _imgIDCount++;
+          imgIDCount++;
         }
 
+        directionJudge++;
+
         return {
-          imgID: _index,
+          imgID: _imgIDCount,
           uuid: uuidv4(),
-          moveDirection: Math.floor(index / rows) % 2 === 0 ? "up" : "down",
+          moveDirection:
+            Math.floor(directionJudge / rows) % 2 === 0 ? "up" : "down",
         };
       })
     );
@@ -91,17 +95,15 @@ function continuousUpdate() {
     const l = offSet.indexOf("(") + 1;
     const r = offSet.indexOf("p");
     offSet = offSet.slice(l, r);
-    let offsetNum = parseInt(offSet) || 0;
+    let offsetNum = parseInt(offSet);
 
-    // 根据列的奇偶性决定更新方向
-    // const indexCol = Math.floor(
-    //   index / Math.floor(waterfallRef.value!.clientHeight / 250) + 2
-    // );
-    // if (indexCol % 2 === 0) {
-    //   offsetNum -= 10; // 向上平移
-    // } else {
-    //   offsetNum += 10; // 向下平移
-    // }
+    const direction = itemArrays.value.flat()[index].moveDirection;
+
+    if (direction === "up") {
+      offsetNum -= 50; // 向上平移
+    } else {
+      offsetNum += 50; // 向下平移
+    }
 
     element.style.setProperty("transform", `translateY(${offsetNum}px)`);
   });
@@ -110,7 +112,7 @@ function continuousUpdate() {
 }
 
 const debouncedCalculate = useDebounceFn(calculateColumns, 100);
-const debouncedUpdate = useDebounceFn(continuousUpdate, 100);
+const debouncedUpdate = useDebounceFn(continuousUpdate, 1000);
 
 onMounted(() => {
   calculateColumns();
@@ -122,11 +124,8 @@ onMounted(() => {
   });
 
   setTimeout(() => {
-    const flatArr = itemArrays.value.flat();
-    console.log(flatArr);
-
-    // debouncedUpdate();
-  }, 50);
+    debouncedUpdate();
+  }, 500);
 });
 </script>
 
