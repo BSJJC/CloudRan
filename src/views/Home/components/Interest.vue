@@ -13,7 +13,7 @@
       >
         <!-- 列内垂直布局容器 -->
         <transition-group
-          tag="ul"
+          tag="div"
           name="fade"
           class="w-full h-full flex flex-col space-y-2 relative"
         >
@@ -133,14 +133,12 @@ function updateMasonryColumns() {
       const moveDirection = elements[0].moveDirection;
       if (moveDirection === "up") {
         let { imageId, moveDirection } = elements[elements.length - 1];
-        console.log(imageId);
 
         masonryColumns.value[index].push({
-          imageId: 10,
+          imageId,
           uuid: uuidv4(),
           moveDirection,
         });
-
         // TODO 为什么新生成的图片会跑到下面老远去
 
         masonryColumns.value[index].shift();
@@ -161,7 +159,7 @@ onMounted(() => {
   });
 
   setTimeout(() => {
-    debouncedPositionUpdate();
+    // debouncedPositionUpdate();
     updateMasonryColumns();
   }, 500);
 });
