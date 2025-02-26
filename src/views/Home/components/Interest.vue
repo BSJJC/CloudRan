@@ -2,186 +2,264 @@
   <div class="view-full p-4">
     <!-- 瀑布流容器 (Masonry Container) -->
     <div
-      ref="masonryContainerRef"
-      class="view-full flex justify-center items-center space-x-2 overflow-hidden"
+      ref="containerRef"
+      class="view-full flex justify-center items-center space-x-4 overflow-hidden rounded-xl"
     >
       <!-- 瀑布流列容器 (Masonry Columns) -->
       <div
-        v-for="(column, colIndex) in masonryColumns"
+        v-for="(column, colIndex) in columns"
         :key="colIndex"
-        class="w-[200px] h-[150%] relative overflow-hidden"
+        class="w-[200px] h-full overflow-hidden rounded-xl"
       >
         <!-- 列内垂直布局容器 -->
-        <transition-group
-          tag="div"
-          name="fade"
-          class="w-full h-full flex flex-col space-y-2 relative"
-        >
-          <!-- 瀑布流项 (Masonry Items) -->
-          <div
-            ref="imageRefs"
-            v-for="item in column"
-            :key="item.uuid"
-            class="min-h-[250px] w-full rounded-xl shadow-xl overflow-hidden transition duration-1000 ease-linear"
-            style="transform: translateY(0px)"
-          >
-            <img
-              :src="
-                item.imageId
-                  ? `/src/assets/interestImages/test${item.imageId}.webp`
-                  : `/src/assets/interestImages/default.webp`
-              "
-              class="opacity-40"
-              alt=""
-            />
-          </div>
-        </transition-group>
+        <ul ref="scrollContainerRefs" class="h-full overflow-hidden">
+          <transition-group tag="ul" name="list" class="space-y-4 relative">
+            <li
+              v-for="item in column"
+              :key="item.uuid"
+              class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
+            >
+              <img
+                :src="getImageUrl(item.imageId)"
+                class="opacity-40"
+                alt="interest image"
+              />
+            </li>
+          </transition-group>
+        </ul>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, type Ref, watch } from "vue";
+import {
+  ref,
+  type Ref,
+  watch,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 
-// 瀑布流容器 DOM 引用
-const masonryContainerRef = ref<HTMLDivElement>();
-// 瀑布流项的 DOM 引用（v-for 多个元素会形成数组）
-const imageRefs = ref<HTMLElement[]>([]);
+// 常量定义
+const COLUMN_WIDTH: number = 200;
+const ITEM_HEIGHT: number = 250;
+const SCROLL_DURATION: number = 5000;
+const SCROLL_DISTANCE: number = 500;
+const INITIAL_BUFFER: number = 5;
 
-// 定义瀑布流项的数据类型
+/**
+ * @typedef {Object} MasonryItem
+ * @property {number} imageId 图片ID
+ * @property {string} uuid 唯一标识
+ */
 type MasonryItem = {
   imageId: number;
   uuid: string;
-  moveDirection: "up" | "down";
 };
 
-// 用二维数组存储瀑布流的列，每一列包含多个瀑布流项
-const masonryColumns: Ref<MasonryItem[][]> = ref([]);
+/**
+ * @typedef {MasonryItem[]} MasonryColumn
+ */
+type MasonryColumn = MasonryItem[];
+
+// 响应式引用
+const containerRef = ref<HTMLDivElement>();
+const scrollContainerRefs = ref<HTMLElement[]>([]);
+const columns: Ref<MasonryColumn[]> = ref([]);
+const scrollIntervals: number[] = [];
+
+// 动态引入图片资源
+const imageFiles = import.meta.glob("../../../assets/interestImages/*.webp");
+const maxImageId: number = Object.keys(imageFiles).length;
+const defaultImageUrl: string = new URL(
+  "../../assets/interestImages/default.webp",
+  import.meta.url
+).href;
 
 /**
- * 根据容器尺寸初始化瀑布流列及项
+ * 获取图片 URL
+ *
+ * @param {number} id 图片的 ID
+ * @returns {string} 返回对应的图片 URL，如果 id 无效则返回默认图片 URL
  */
-function initializeMasonryGrid() {
-  const containerWidth = masonryContainerRef.value?.clientWidth;
-  const containerHeight = masonryContainerRef.value?.clientHeight;
+function getImageUrl(id: number): string {
+  const isValid: boolean = id > 0 && id <= maxImageId;
 
-  if (containerWidth && containerHeight) {
-    const columnCount = Math.floor(containerWidth / 200);
-    const rowCount = Math.floor(containerHeight / 250) + 2;
-
-    const interestImages = import.meta.glob(
-      "../../../assets/interestImages/*.webp"
-    );
-    const maxImageId = Object.keys(interestImages).length;
-
-    let currentImageId = 0;
-    let directionIndex = -1;
-
-    masonryColumns.value = Array.from({ length: columnCount }, () =>
-      Array.from({ length: rowCount }, () => {
-        let imageIdForItem = currentImageId;
-        if (imageIdForItem + 1 > maxImageId) {
-          imageIdForItem = 1;
-          currentImageId = 1;
-        } else {
-          imageIdForItem++;
-          currentImageId++;
-        }
-
-        directionIndex++;
-
-        return {
-          imageId: imageIdForItem,
-          uuid: uuidv4(),
-          moveDirection:
-            Math.floor(directionIndex / rowCount) % 2 === 0 ? "up" : "down",
-        };
-      })
-    );
-  }
+  return isValid
+    ? new URL(`../../../assets/interestImages/test${id}.webp`, import.meta.url)
+        .href
+    : defaultImageUrl;
 }
 
 /**
- * 更新瀑布流项的垂直位移，实现动画效果
+ * 创建一个瀑布流项
+ *
+ * @param {number} imageId 图片ID
+ * @returns {MasonryItem} 返回一个带有图片ID和唯一标识的瀑布流项
  */
-function updateImagePositions() {
-  imageRefs.value.forEach((element: HTMLElement, index: number) => {
-    let transformValue = element.style.getPropertyValue("transform");
-    const start = transformValue.indexOf("(") + 1;
-    const end = transformValue.indexOf("p");
-    const currentOffset = transformValue.slice(start, end);
-    let offsetValue = parseInt(currentOffset);
+function createItem(imageId: number): MasonryItem {
+  return { imageId, uuid: uuidv4() };
+}
 
-    const direction = masonryColumns.value.flat()[index].moveDirection;
-    if (direction === "up") {
-      offsetValue -= 50; // 向上移动
-    } else {
-      offsetValue += 50; // 向下移动
+/**
+ * 根据容器尺寸计算瀑布流的布局
+ *
+ * @returns {void}
+ */
+function calculateLayout(): void {
+  if (!containerRef.value) return;
+
+  const containerWidth: number = containerRef.value.clientWidth;
+  const containerHeight: number = containerRef.value.clientHeight;
+
+  const colCount: number = Math.floor(containerWidth / COLUMN_WIDTH);
+  const rowCount: number =
+    Math.floor(containerHeight / ITEM_HEIGHT) + INITIAL_BUFFER;
+
+  columns.value = Array.from({ length: colCount }, (_, colIndex) =>
+    Array.from({ length: rowCount }, (_, rowIndex) => {
+      const imageId: number =
+        ((colIndex * rowCount + rowIndex) % maxImageId) + 1;
+      return createItem(imageId);
+    })
+  );
+}
+
+/**
+ * 平滑滚动容器
+ *
+ * @param {HTMLElement} element 滚动的容器元素
+ * @param {number} duration 滚动持续时间（毫秒）
+ * @param {number} scrollAmount 滚动距离
+ * @returns {void}
+ */
+function smoothScroll(
+  element: HTMLElement,
+  duration: number,
+  scrollAmount: number
+): void {
+  const start: number = element.scrollTop;
+  const startTime: number = performance.now();
+
+  function scrollStep(timestamp: number): void {
+    const currentTime: number = timestamp - startTime;
+    const progress: number = Math.min(currentTime / duration, 1);
+    const newScrollPosition: number = start + scrollAmount * progress;
+
+    element.scrollTop = newScrollPosition;
+
+    if (currentTime < duration) {
+      requestAnimationFrame(scrollStep);
     }
-    element.style.setProperty("transform", `translateY(${offsetValue}px)`);
+  }
+
+  requestAnimationFrame(scrollStep);
+}
+
+/**
+ * 为指定的列设置定时滚动
+ *
+ * @param {number} columnIndex 列的索引
+ * @param {number} direction 滚动方向，1 为向下滚动，-1 为向上滚动
+ * @returns {void}
+ */
+function setupColumnScroll(columnIndex: number, direction: number): void {
+  const container: HTMLElement | undefined =
+    scrollContainerRefs.value[columnIndex];
+  if (!container) return;
+
+  /**
+   * 滚动处理函数
+   */
+  function scrollHandler(): void {
+    smoothScroll(container!, SCROLL_DURATION, direction * SCROLL_DISTANCE);
+  }
+
+  const interval: number = setInterval(scrollHandler, SCROLL_DURATION);
+  scrollIntervals.push(interval);
+}
+
+/**
+ * 更新所有列的内容，交替追加或前置新项
+ *
+ * @returns {void}
+ */
+function updateColumnsContent(): void {
+  columns.value.forEach((column: MasonryColumn, index: number): void => {
+    const isEvenColumn: boolean = index % 2 === 0;
+    isEvenColumn ? appendNewItem(column) : prependNewItem(column);
   });
-
-  debouncedPositionUpdate();
 }
 
-function updateMasonryColumns() {
-  setInterval(() => {
-    masonryColumns.value.forEach((elements, index) => {
-      const moveDirection = elements[0].moveDirection;
-      if (moveDirection === "up") {
-        let { imageId, moveDirection } = elements[elements.length - 1];
+/**
+ * 在列末尾添加新项，并移除第一项
+ *
+ * @param {MasonryColumn} column 需要更新的列
+ * @returns {void}
+ */
+function appendNewItem(column: MasonryColumn): void {
+  const lastItem: MasonryItem = column[column.length - 1];
+  const newId: number = (lastItem?.imageId % maxImageId) + 1;
 
-        masonryColumns.value[index].push({
-          imageId,
-          uuid: uuidv4(),
-          moveDirection,
-        });
-        // TODO 为什么新生成的图片会跑到下面老远去
-
-        masonryColumns.value[index].shift();
-      }
-    });
-  }, 3000);
+  column.push(createItem(newId));
+  column.shift();
 }
 
-const debouncedGridInitialization = useDebounceFn(initializeMasonryGrid, 100);
-const debouncedPositionUpdate = useDebounceFn(updateImagePositions, 1000);
+/**
+ * 在列开头添加新项，并移除最后一项
+ *
+ * @param {MasonryColumn} column 需要更新的列
+ * @returns {void}
+ */
+function prependNewItem(column: MasonryColumn): void {
+  const firstItem: MasonryItem = column[0];
+  const newId: number =
+    firstItem?.imageId > 1 ? firstItem.imageId - 1 : maxImageId;
 
-onMounted(() => {
-  initializeMasonryGrid();
+  column.unshift(createItem(newId));
+  column.pop();
+}
+
+// 使用防抖函数初始化瀑布流布局
+const debouncedGridInitialization = useDebounceFn(calculateLayout, 100);
+
+onMounted((): void => {
+  calculateLayout();
 
   const { width } = useWindowSize();
-  watch(width, () => {
+  watch(width, (): void => {
     debouncedGridInitialization();
   });
 
-  setTimeout(() => {
-    // debouncedPositionUpdate();
-    updateMasonryColumns();
-  }, 500);
+  nextTick((): void => {
+    columns.value.forEach((_, index: number): void => {
+      const direction: number = index % 2 === 0 ? 1 : -1;
+      setupColumnScroll(index, direction);
+    });
+
+    updateColumnsContent();
+    setInterval(updateColumnsContent, SCROLL_DURATION);
+  });
+});
+
+onBeforeUnmount((): void => {
+  scrollIntervals.forEach(clearInterval);
 });
 </script>
 
 <style scoped>
-/* 1. 声明过渡效果 */
-.fade-move,
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.5s ease-in-out;
+.list-enter-active,
+.list-leave-active {
+  transition: all 5s linear;
 }
 
-/* 2. 声明进入和离开的状态 */
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* 3. 确保离开的项目被移除出了布局流
-      以便正确地计算移动时的动画效果。 */
-.fade-leave-active {
-  position: absolute;
+.list-enter-from,
+.list-leave-to {
+  height: 0px;
+  margin: 0px;
 }
 </style>
