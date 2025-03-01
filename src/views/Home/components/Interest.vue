@@ -21,7 +21,7 @@
             >
               <img
                 :src="getImageUrl(item.imageId)"
-                class="opacity-40"
+                class="opacity-30"
                 alt="interest image"
               />
             </li>
@@ -44,7 +44,6 @@ import {
 import { useWindowSize, useDebounceFn } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 
-// 常量定义
 const COLUMN_WIDTH: number = 200;
 const ITEM_HEIGHT: number = 250;
 const SCROLL_DURATION: number = 5000;
@@ -53,8 +52,8 @@ const INITIAL_BUFFER: number = 5;
 
 /**
  * @typedef {Object} MasonryItem
- * @property {number} imageId 图片ID
- * @property {string} uuid 唯一标识
+ * @property {number} imageId
+ * @property {string} uuid
  */
 type MasonryItem = {
   imageId: number;
@@ -66,13 +65,12 @@ type MasonryItem = {
  */
 type MasonryColumn = MasonryItem[];
 
-// 响应式引用
 const containerRef = ref<HTMLDivElement>();
 const scrollContainerRefs = ref<HTMLElement[]>([]);
 const columns: Ref<MasonryColumn[]> = ref([]);
 const scrollIntervals: number[] = [];
+const contentUpdateInterval = ref<number | null>(null);
 
-// 动态引入图片资源
 const imageFiles = import.meta.glob("../../../assets/interestImages/*.webp");
 const maxImageId: number = Object.keys(imageFiles).length;
 const defaultImageUrl: string = new URL(
@@ -224,16 +222,45 @@ function prependNewItem(column: MasonryColumn): void {
   column.pop();
 }
 
-// 使用防抖函数初始化瀑布流布局
+/**
+ * 处理页面可见性变化
+ *
+ * @returns {void}
+ */
+function handleVisibilityChange(): void {
+  if (document.visibilityState === "hidden") {
+    // 清除所有定时器
+    scrollIntervals.forEach(clearInterval);
+    scrollIntervals.length = 0;
+    if (contentUpdateInterval.value !== null) {
+      clearInterval(contentUpdateInterval.value);
+      contentUpdateInterval.value = null;
+    }
+  } else {
+    // 重新启动滚动定时器
+    columns.value.forEach((_, index: number) => {
+      const direction: number = index % 2 === 0 ? 1 : -1;
+      setupColumnScroll(index, direction);
+    });
+    // 重新启动内容更新定时器
+    if (contentUpdateInterval.value === null) {
+      contentUpdateInterval.value = setInterval(
+        updateColumnsContent,
+        SCROLL_DURATION
+      );
+    }
+  }
+}
+
 const debouncedGridInitialization = useDebounceFn(calculateLayout, 100);
 
 onMounted((): void => {
   calculateLayout();
 
   const { width } = useWindowSize();
-  watch(width, (): void => {
-    debouncedGridInitialization();
-  });
+  watch(width, debouncedGridInitialization);
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 
   nextTick((): void => {
     columns.value.forEach((_, index: number): void => {
@@ -247,7 +274,12 @@ onMounted((): void => {
 });
 
 onBeforeUnmount((): void => {
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
+
   scrollIntervals.forEach(clearInterval);
+  if (contentUpdateInterval.value !== null) {
+    clearInterval(contentUpdateInterval.value);
+  }
 });
 </script>
 

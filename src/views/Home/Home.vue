@@ -1,9 +1,9 @@
 <template>
   <div class="view-full relative">
     <!-- 介绍 -->
-    <!-- <div class="view-full absolute flex justify-center items-center z-[+1]"> -->
-    <!-- <Intro></Intro> -->
-    <!-- </div> -->
+    <div class="view-full absolute flex justify-center items-center z-[+1]">
+      <Intro></Intro>
+    </div>
 
     <!-- 成分 -->
     <div class="view-full">
