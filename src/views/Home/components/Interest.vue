@@ -20,7 +20,7 @@
               class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
             >
               <img
-                :src="getImageUrl(item.imageId)"
+                :src="getImageUrl(item.imgFileName)"
                 class="opacity-30"
                 alt="interest image"
               />
@@ -52,11 +52,11 @@ const INITIAL_BUFFER: number = 5;
 
 /**
  * @typedef {Object} MasonryItem
- * @property {number} imageId
+ * @property {number} imgFileName
  * @property {string} uuid
  */
 type MasonryItem = {
-  imageId: number;
+  imgFileName: string;
   uuid: string;
 };
 
@@ -71,36 +71,32 @@ const columns: Ref<MasonryColumn[]> = ref([]);
 const scrollIntervals: number[] = [];
 const contentUpdateInterval = ref<number | null>(null);
 
-const imageFiles = import.meta.glob("../../../assets/interestImages/*.webp");
-const maxImageId: number = Object.keys(imageFiles).length;
-const defaultImageUrl: string = new URL(
-  "../../assets/interestImages/default.webp",
-  import.meta.url
-).href;
+const files = import.meta.glob("../../../assets/interestImages/*.*");
+const interestImgNames = Object.keys(files).map((path) =>
+  path.split("/").pop()
+);
 
 /**
  * 获取图片 URL
  *
- * @param {number} id 图片的 ID
- * @returns {string} 返回对应的图片 URL，如果 id 无效则返回默认图片 URL
+ * @param {string} imgFileName 图片的 ID
+ * @returns {string} 返回对应的图片 URL
  */
-function getImageUrl(id: number): string {
-  const isValid: boolean = id > 0 && id <= maxImageId;
-
-  return isValid
-    ? new URL(`../../../assets/interestImages/test${id}.webp`, import.meta.url)
-        .href
-    : defaultImageUrl;
+function getImageUrl(imgFileName: string): string {
+  return new URL(
+    `../../../assets/interestImages/${imgFileName}`,
+    import.meta.url
+  ).href;
 }
 
 /**
  * 创建一个瀑布流项
  *
- * @param {number} imageId 图片ID
+ * @param {string} imgFileName 图片名字
  * @returns {MasonryItem} 返回一个带有图片ID和唯一标识的瀑布流项
  */
-function createItem(imageId: number): MasonryItem {
-  return { imageId, uuid: uuidv4() };
+function createItem(imgFileName: string): MasonryItem {
+  return { imgFileName, uuid: uuidv4() };
 }
 
 /**
@@ -118,11 +114,21 @@ function calculateLayout(): void {
   const rowCount: number =
     Math.floor(containerHeight / ITEM_HEIGHT) + INITIAL_BUFFER;
 
-  columns.value = Array.from({ length: colCount }, (_, colIndex) =>
-    Array.from({ length: rowCount }, (_, rowIndex) => {
-      const imageId: number =
-        ((colIndex * rowCount + rowIndex) % maxImageId) + 1;
-      return createItem(imageId);
+  let index = 0;
+
+  columns.value = Array.from({ length: colCount }, () =>
+    Array.from({ length: rowCount }, () => {
+      let newName: string;
+
+      if (interestImgNames[index]) {
+        newName = interestImgNames[index] as string;
+        index++;
+      } else {
+        newName = interestImgNames[0] as string;
+        index = 0;
+      }
+
+      return createItem(newName);
     })
   );
 }
@@ -200,10 +206,12 @@ function updateColumnsContent(): void {
  * @returns {void}
  */
 function appendNewItem(column: MasonryColumn): void {
-  const lastItem: MasonryItem = column[column.length - 1];
-  const newId: number = (lastItem?.imageId % maxImageId) + 1;
+  const lastItemName = column[column.length - 1].imgFileName;
+  const newName = interestImgNames[interestImgNames.indexOf(lastItemName) + 1]
+    ? interestImgNames[interestImgNames.indexOf(lastItemName) + 1]
+    : interestImgNames[0];
 
-  column.push(createItem(newId));
+  column.push(createItem(newName!));
   column.shift();
 }
 
@@ -214,11 +222,12 @@ function appendNewItem(column: MasonryColumn): void {
  * @returns {void}
  */
 function prependNewItem(column: MasonryColumn): void {
-  const firstItem: MasonryItem = column[0];
-  const newId: number =
-    firstItem?.imageId > 1 ? firstItem.imageId - 1 : maxImageId;
+  const lastItemName = column[0].imgFileName;
+  const newName = interestImgNames[interestImgNames.indexOf(lastItemName) - 1]
+    ? interestImgNames[interestImgNames.indexOf(lastItemName) - 1]
+    : interestImgNames[interestImgNames.length - 1];
 
-  column.unshift(createItem(newId));
+  column.unshift(createItem(newName!));
   column.pop();
 }
 
