@@ -1,11 +1,11 @@
 <template>
   <div class="view-full relative overflow-hidden">
     <!-- 介绍 -->
-    <div class="view-full absolute flex justify-center items-center z-[+1]">
+    <!-- <div class="view-full absolute flex justify-center items-center z-[+1]">
       <transition name="intro">
         <Intro></Intro>
       </transition>
-    </div>
+    </div> -->
 
     <!-- 成分 -->
     <div class="view-full">

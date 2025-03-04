@@ -17,11 +17,11 @@
             <li
               v-for="item in column"
               :key="item.uuid"
-              class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden"
+              class="h-[250px] w-full rounded-xl shadow-xl overflow-hidden flex justify-center items-center p-4"
             >
               <img
                 :src="getImageUrl(item.imgFileName)"
-                class="opacity-30"
+                class="opacity-30 grayscale rounded-xl"
                 alt="interest image"
               />
             </li>
@@ -115,6 +115,7 @@ function calculateLayout(): void {
     Math.floor(containerHeight / ITEM_HEIGHT) + INITIAL_BUFFER;
 
   let index = 0;
+  const maxIndex = interestImgNames.length - 1;
 
   columns.value = Array.from({ length: colCount }, () =>
     Array.from({ length: rowCount }, () => {
@@ -122,7 +123,11 @@ function calculateLayout(): void {
 
       if (interestImgNames[index]) {
         newName = interestImgNames[index] as string;
-        index++;
+        if (index + 1 > maxIndex) {
+          index = 0;
+        } else {
+          index++;
+        }
       } else {
         newName = interestImgNames[0] as string;
         index = 0;
