@@ -1,5 +1,7 @@
 <template>
-  <div class="w-2/6 h-2/3 flex justify-center items-center flex-col space-y-8">
+  <div
+    class="w-2/6 h-2/3 min-w-[300px] flex justify-center items-center flex-col space-y-8"
+  >
     <!-- profile -->
     <div class="w-[150px] h-[150px] relative overflow-hidden rounded-full">
       <img src="../../../assets/profile.jpg" alt="profile" class="absolute" />

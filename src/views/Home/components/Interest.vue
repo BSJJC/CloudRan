@@ -46,7 +46,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const COLUMN_WIDTH: number = 200;
 const ITEM_HEIGHT: number = 250;
-const SCROLL_DURATION: number = 5000;
+const SCROLL_DURATION: number = 10000;
 const SCROLL_DISTANCE: number = 500;
 const INITIAL_BUFFER: number = 5;
 
@@ -286,7 +286,7 @@ onBeforeUnmount((): void => {
 <style scoped>
 .list-enter-active,
 .list-leave-active {
-  transition: all 5s linear;
+  transition: all 10s linear;
 }
 
 .list-enter-from,

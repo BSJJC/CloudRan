@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+* {
+  transition: all 0.3s;
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 .view-full {
   width: 100%;
   height: 100%;
